@@ -63,44 +63,45 @@ else:
         if st.button('Registrarse'):
             if nombre and email and password:
                 hashed_password = hash_password(password)
-                execute_query('INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)', (nombre, email, hashed_password))
-                user_id = execute_query('SELECT last_insert_rowid()')[0][0]
+                result = execute_query('INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)', (nombre, email, hashed_password))
+                if result is not None:
+                    user_id = execute_query('SELECT last_insert_rowid()')[0][0]
 
-                # Generar el código QR
-                qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
-                qr_img = qrcode.make(qr_data)
-                buf = BytesIO()
-                qr_img.save(buf, format='PNG')
-                byte_im = buf.getvalue()
+                    # Generar el código QR
+                    qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
+                    qr_img = qrcode.make(qr_data)
+                    buf = BytesIO()
+                    qr_img.save(buf, format='PNG')
+                    byte_im = buf.getvalue()
 
-                st.image(byte_im, caption='Tu Código QR')
-                st.success('¡Registro exitoso! Guarda este código QR.')
+                    st.image(byte_im, caption='Tu Código QR')
+                    st.success('¡Registro exitoso! Guarda este código QR.')
 
-                # Enviar el correo electrónico con la información de registro y el código QR
-                try:
-                    msg = MIMEMultipart()
-                    msg['From'] = 'tu_correo@gmail.com'
-                    msg['To'] = email
-                    msg['Subject'] = 'Confirmación de Registro y Código QR'
+                    # Enviar el correo electrónico con la información de registro y el código QR
+                    try:
+                        msg = MIMEMultipart()
+                        msg['From'] = 'tu_correo@gmail.com'
+                        msg['To'] = email
+                        msg['Subject'] = 'Confirmación de Registro y Código QR'
 
-                    # Cuerpo del correo
-                    body = f'Hola {nombre},\n\nGracias por registrarte en nuestro evento.\nAdjunto encontrarás tu código QR para la confirmación de asistencia.\n\nSaludos,'
-                    msg.attach(MIMEText(body, 'plain'))
+                        # Cuerpo del correo
+                        body = f'Hola {nombre},\n\nGracias por registrarte en nuestro evento.\nAdjunto encontrarás tu código QR para la confirmación de asistencia.\n\nSaludos,'
+                        msg.attach(MIMEText(body, 'plain'))
 
-                    # Adjuntar el código QR
-                    image = MIMEImage(byte_im, name='codigo_qr.png')
-                    msg.attach(image)
+                        # Adjuntar el código QR
+                        image = MIMEImage(byte_im, name='codigo_qr.png')
+                        msg.attach(image)
 
-                    # Configurar servidor SMTP
-                    server = smtplib.SMTP('smtp.gmail.com', 587)
-                    server.starttls()
-                    server.login('tu_correo@gmail.com', 'tu_contraseña')
-                    server.sendmail('tu_correo@gmail.com', email, msg.as_string())
-                    server.quit()
+                        # Configurar servidor SMTP
+                        server = smtplib.SMTP('smtp.gmail.com', 587)
+                        server.starttls()
+                        server.login('tu_correo@gmail.com', 'tu_contraseña')
+                        server.sendmail('tu_correo@gmail.com', email, msg.as_string())
+                        server.quit()
 
-                    st.success('Correo electrónico enviado con éxito.')
-                except Exception as e:
-                    st.error(f'Error al enviar el correo electrónico: {e}')
+                        st.success('Correo electrónico enviado con éxito.')
+                    except Exception as e:
+                        st.error(f'Error al enviar el correo electrónico: {e}')
             else:
                 st.error('Por favor, completa todos los campos.')
 
@@ -154,7 +155,10 @@ else:
         if st.button('Registrar Administrador'):
             if nombre and email and password:
                 hashed_password = hash_password(password)
-                execute_query('INSERT INTO usuarios (nombre, email, password, es_admin) VALUES (?, ?, ?, 1)', (nombre, email, hashed_password))
-                st.success('¡Administrador registrado exitosamente!')
+                result = execute_query('INSERT INTO usuarios (nombre, email, password, es_admin) VALUES (?, ?, ?, 1)', (nombre, email, hashed_password))
+                if result is not None:
+                    st.success('¡Administrador registrado exitosamente!')
+                else:
+                    st.error('Error al registrar al administrador. Por favor, inténtelo de nuevo más tarde.')
             else:
                 st.error('Por favor, complete todos los campos.')

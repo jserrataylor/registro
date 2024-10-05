@@ -125,17 +125,17 @@ else:
                 email = st.text_input('Ingrese el correo electrónico del usuario para confirmar la asistencia')
                 if st.button('Confirmar Asistencia'):
                     if email:
-                        c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
+                        c.execute('SELECT id, nombre FROM usuarios WHERE email = ?', (email,))
                         user = c.fetchone()
                         if user:
-                            user_id = user[0]
+                            user_id, nombre = user
                             c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
                             conn.commit()
                             st.success('¡Asistencia confirmada!')
 
                             # Enviar correo electrónico de confirmación
                             asunto = 'Confirmación de Asistencia'
-                            cuerpo = f'Hola,\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
+                            cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
                             enviar_correo(email, asunto, cuerpo)
                         else:
                             st.error('Correo electrónico no encontrado.')

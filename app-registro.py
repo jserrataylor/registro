@@ -7,11 +7,6 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
-import hashlib
-
-# Función para encriptar contraseñas
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
 
 # Función para ejecutar consultas SQL con manejo de errores y asegurar la conexión
 def execute_query(query, params=()):
@@ -38,9 +33,7 @@ def initialize_database():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             email TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            asistencia INTEGER DEFAULT 0,
-            es_admin INTEGER DEFAULT 0
+            asistencia INTEGER DEFAULT 0
         )
         """)
         conn.commit()
@@ -62,19 +55,17 @@ if user_id and user_id != 'None':
         st.success('¡Asistencia confirmada!')
 else:
     # Menú lateral para navegar entre las opciones
-    menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración', 'Registro de Administrador'])
+    menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración'])
 
     if menu == 'Registro':
         st.title('Registro de Evento')
 
         nombre = st.text_input('Nombre')
         email = st.text_input('Email')
-        password = st.text_input('Contraseña', type='password')
 
         if st.button('Registrarse'):
-            if nombre and email and password:
-                hashed_password = hash_password(password)
-                result = execute_query('INSERT INTO usuarios (nombre, email, password, asistencia, es_admin) VALUES (?, ?, ?, 0, 0)', (nombre, email, hashed_password))
+            if nombre and email:
+                result = execute_query('INSERT INTO usuarios (nombre, email, asistencia) VALUES (?, ?, 0)', (nombre, email))
                 if result is None:
                     st.error('Error al registrar al usuario. Es posible que el correo electrónico ya esté registrado.')
                 else:
@@ -122,32 +113,28 @@ else:
         st.title('Confirmación de Asistencia')
 
         email = st.text_input('Ingrese su correo electrónico para confirmar la asistencia')
-        password = st.text_input('Contraseña', type='password')
 
         if st.button('Confirmar'):
-            if email and password:
-                hashed_password = hash_password(password)
-                user = execute_query('SELECT id FROM usuarios WHERE email = ? AND password = ?', (email, hashed_password))
+            if email:
+                user = execute_query('SELECT id FROM usuarios WHERE email = ?', (email,))
                 if user and len(user) > 0:
                     user_id = user[0][0]
                     if execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,)) is not None:
                         st.success('¡Asistencia confirmada!')
                 else:
-                    st.error('Credenciales incorrectas.')
+                    st.error('Correo electrónico no encontrado.')
             else:
-                st.error('Por favor, ingrese sus credenciales.')
+                st.error('Por favor, ingrese su correo electrónico.')
 
     elif menu == 'Administración':
         st.title('Panel de Administración')
 
-        # Solicitar credenciales de administrador
-        email = st.text_input('Correo electrónico de administrador')
-        password = st.text_input('Contraseña', type='password')
+        # Solicitar contraseña de administrador
+        password = st.text_input('Contraseña de administrador', type='password')
 
         if st.button('Ingresar'):
-            hashed_password = hash_password(password)
-            admin = execute_query('SELECT * FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
-            if admin and len(admin) > 0:
+            admin_password = 'admin123'  # Contraseña fija para acceso administrativo
+            if password == admin_password:
                 # Mostrar los usuarios registrados
                 try:
                     conn = sqlite3.connect('usuarios.db', check_same_thread=False)
@@ -165,22 +152,4 @@ else:
                     except Exception as e:
                         st.error(f'Error al exportar los datos: {e}')
             else:
-                st.error('Credenciales de administrador incorrectas.')
-
-    elif menu == 'Registro de Administrador':
-        st.title('Registro de Administrador')
-
-        nombre = st.text_input('Nombre del Administrador')
-        email = st.text_input('Correo Electrónico del Administrador')
-        password = st.text_input('Contraseña', type='password')
-
-        if st.button('Registrar Administrador'):
-            if nombre and email and password:
-                hashed_password = hash_password(password)
-                result = execute_query('INSERT INTO usuarios (nombre, email, password, asistencia, es_admin) VALUES (?, ?, ?, 0, 1)', (nombre, email, hashed_password))
-                if result is None:
-                    st.error('Error al registrar al administrador. Es posible que el correo electrónico ya esté registrado.')
-                else:
-                    st.success('¡Administrador registrado exitosamente!')
-            else:
-                st.error('Por favor, complete todos los campos.')
+                st.error('Contraseña de administrador incorrecta.')

@@ -128,7 +128,7 @@ else:
             if email and password:
                 hashed_password = hash_password(password)
                 user = execute_query('SELECT id FROM usuarios WHERE email = ? AND password = ?', (email, hashed_password))
-                if user:
+                if user and len(user) > 0:
                     user_id = user[0][0]
                     if execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,)) is not None:
                         st.success('¡Asistencia confirmada!')
@@ -147,7 +147,7 @@ else:
         if st.button('Ingresar'):
             hashed_password = hash_password(password)
             admin = execute_query('SELECT * FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
-            if admin:
+            if admin and len(admin) > 0:
                 # Mostrar los usuarios registrados
                 try:
                     conn = sqlite3.connect('usuarios.db', check_same_thread=False)

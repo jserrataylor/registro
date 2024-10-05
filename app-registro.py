@@ -47,7 +47,13 @@ else:
 
         if st.button('Registrarse'):
             if nombre and email:
+                # Limpiar espacios en blanco del correo
+                email = email.strip()
+
                 try:
+                    # Imprimir para depuración antes de insertar en la base de datos
+                    st.write(f"Guardando email: {email}")
+
                     # Insertar los datos en la base de datos
                     c.execute('INSERT INTO usuarios (nombre, email) VALUES (?, ?)', (nombre, email))
                     conn.commit()
@@ -64,11 +70,14 @@ else:
                     st.success('¡Registro exitoso! Guarda este código QR.')
                 except sqlite3.IntegrityError:
                     st.warning('El correo electrónico ya está registrado. Recuperando el código QR existente...')
+
+                    # Verificar si el correo está en la base de datos
+                    st.write(f"Buscando email: {email}")
                     c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
                     result = c.fetchone()
-                    
+
                     # Depuración: Ver el resultado de la consulta
-                    st.write(result)  
+                    st.write(f"Resultado de la consulta: {result}")  
 
                     if result:
                         existing_user_id = result[0]
@@ -118,4 +127,3 @@ else:
         if st.button('Exportar a Excel'):
             df.to_excel('registro_usuarios.xlsx', index=False)
             st.success('Datos exportados exitosamente.')
-

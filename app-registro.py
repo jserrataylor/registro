@@ -14,12 +14,12 @@ c = conn.cursor()
 
 # Crear la tabla de usuarios si no existe
 c.execute("""
-CREATE TABLE IF NOT EXISTS usuarios (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT NOT NULL,
-    email TEXT NOT NULL,
-    asistencia INTEGER DEFAULT 0
-)
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        email TEXT NOT NULL,
+        asistencia INTEGER DEFAULT 0
+    )
 """)
 conn.commit()
 
@@ -121,7 +121,6 @@ else:
                     st.success('Datos exportados exitosamente.')
             else:
                 st.error('Credenciales de administrador incorrectas.')
-
 
 '''
 import streamlit as st

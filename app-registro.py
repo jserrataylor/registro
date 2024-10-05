@@ -117,22 +117,28 @@ else:
         if st.button('Ingresar'):
             admin_password = 'admin123'  # Contraseña fija para acceso administrativo
             if password == admin_password:
-                email = st.text_input('Ingrese su correo electrónico para confirmar la asistencia')
-                if email:
-                    c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
-                    user = c.fetchone()
-                    if user:
-                        user_id = user[0]
-                        c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                        conn.commit()
-                        st.success('¡Asistencia confirmada!')
+                st.success('Acceso concedido. Ahora puede confirmar la asistencia de los usuarios.')
 
-                        # Enviar correo electrónico de confirmación
-                        asunto = 'Confirmación de Asistencia'
-                        cuerpo = f'Hola,\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
-                        enviar_correo(email, asunto, cuerpo)
+                # Mostrar la opción para confirmar asistencia
+                email = st.text_input('Ingrese el correo electrónico del usuario para confirmar la asistencia')
+                if st.button('Confirmar Asistencia'):
+                    if email:
+                        c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
+                        user = c.fetchone()
+                        if user:
+                            user_id = user[0]
+                            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                            conn.commit()
+                            st.success('¡Asistencia confirmada!')
+
+                            # Enviar correo electrónico de confirmación
+                            asunto = 'Confirmación de Asistencia'
+                            cuerpo = f'Hola,\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
+                            enviar_correo(email, asunto, cuerpo)
+                        else:
+                            st.error('Correo electrónico no encontrado.')
                     else:
-                        st.error('Correo electrónico no encontrado.')
+                        st.error('Por favor, ingrese el correo electrónico del usuario.')
             else:
                 st.error('Contraseña de administrador incorrecta.')
 

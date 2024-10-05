@@ -28,17 +28,16 @@ def execute_query(query, params=()):
     finally:
         conn.close()
 
-# Crear la tabla de usuarios si no existe (forzar eliminación y recreación para asegurar columnas)
+# Crear la tabla de usuarios si no existe
 def initialize_database():
     try:
         conn = sqlite3.connect('usuarios.db', check_same_thread=False)
         c = conn.cursor()
-        c.execute("DROP TABLE IF EXISTS usuarios")  # Eliminar la tabla si ya existe
         c.execute("""
-        CREATE TABLE usuarios (
+        CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
-            email TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
             asistencia INTEGER DEFAULT 0,
             es_admin INTEGER DEFAULT 0
@@ -76,7 +75,9 @@ else:
             if nombre and email and password:
                 hashed_password = hash_password(password)
                 result = execute_query('INSERT INTO usuarios (nombre, email, password, asistencia, es_admin) VALUES (?, ?, ?, 0, 0)', (nombre, email, hashed_password))
-                if result is not None:
+                if result is None:
+                    st.error('Error al registrar al usuario. Es posible que el correo electrónico ya esté registrado.')
+                else:
                     user_id = execute_query('SELECT last_insert_rowid()')[0][0]
 
                     # Generar el código QR
@@ -126,9 +127,9 @@ else:
         if st.button('Confirmar'):
             if email and password:
                 hashed_password = hash_password(password)
-                admin = execute_query('SELECT id FROM usuarios WHERE email = ? AND password = ?', (email, hashed_password))
-                if admin:
-                    user_id = admin[0][0]
+                user = execute_query('SELECT id FROM usuarios WHERE email = ? AND password = ?', (email, hashed_password))
+                if user:
+                    user_id = user[0][0]
                     if execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,)) is not None:
                         st.success('¡Asistencia confirmada!')
                 else:
@@ -177,9 +178,9 @@ else:
             if nombre and email and password:
                 hashed_password = hash_password(password)
                 result = execute_query('INSERT INTO usuarios (nombre, email, password, asistencia, es_admin) VALUES (?, ?, ?, 0, 1)', (nombre, email, hashed_password))
-                if result is not None:
-                    st.success('¡Administrador registrado exitosamente!')
+                if result is None:
+                    st.error('Error al registrar al administrador. Es posible que el correo electrónico ya esté registrado.')
                 else:
-                    st.error('Error al registrar al administrador. Por favor, inténtelo de nuevo más tarde.')
+                    st.success('¡Administrador registrado exitosamente!')
             else:
                 st.error('Por favor, complete todos los campos.')

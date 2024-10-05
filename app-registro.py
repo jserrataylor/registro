@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
     email TEXT NOT NULL,
-    asistencia INTEGER DEFAULT 0
+    asistencia INTEGER DEFAULT 0,
+    es_admin INTEGER DEFAULT 0
 )
 """)
 conn.commit()
@@ -35,7 +36,7 @@ if user_id and user_id != 'None':
     st.success('¡Asistencia confirmada!')
 else:
     # Menú lateral para navegar entre las opciones
-    menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración'])
+    menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración', 'Registro de Administrador'])
 
     if menu == 'Registro':
         st.title('Registro de Evento')
@@ -91,27 +92,36 @@ else:
     elif menu == 'Confirmar Asistencia':
         st.title('Confirmación de Asistencia')
 
-        # Pedir el ID del usuario manualmente para pruebas locales
-        user_id = st.text_input('Ingrese el ID de usuario para confirmar la asistencia')
+        email = st.text_input('Ingrese su correo electrónico para confirmar la asistencia')
+        password = st.text_input('Contraseña', type='password')
 
         if st.button('Confirmar'):
-            if user_id:
-                # Actualizar el registro en la base de datos
-                c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                conn.commit()
-                st.success('¡Asistencia confirmada!')
+            if email and password:
+                # Verificar si el usuario es administrador y existe
+                c.execute('SELECT id FROM usuarios WHERE email = ? AND es_admin = 1', (email,))
+                admin = c.fetchone()
+                if admin:
+                    user_id = admin[0]
+                    c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                    conn.commit()
+                    st.success('¡Asistencia confirmada!')
+                else:
+                    st.error('Credenciales incorrectas o no tiene acceso de administrador.')
             else:
-                st.error('No se proporcionó un ID de usuario válido.')
+                st.error('Por favor, ingrese sus credenciales.')
 
     elif menu == 'Administración':
         st.title('Panel de Administración')
 
         # Solicitar credenciales de administrador
-        admin_user = st.text_input('Usuario administrador')
-        admin_password = st.text_input('Contraseña', type='password')
+        email = st.text_input('Correo electrónico de administrador')
+        password = st.text_input('Contraseña', type='password')
 
         if st.button('Ingresar'):
-            if admin_user == 'admin' and admin_password == 'admin123':
+            # Verificar si el usuario es administrador y existe
+            c.execute('SELECT * FROM usuarios WHERE email = ? AND es_admin = 1', (email,))
+            admin = c.fetchone()
+            if admin:
                 # Mostrar los usuarios registrados
                 df = pd.read_sql_query('SELECT * FROM usuarios', conn)
                 st.dataframe(df)
@@ -121,3 +131,19 @@ else:
                     st.success('Datos exportados exitosamente.')
             else:
                 st.error('Credenciales de administrador incorrectas.')
+
+    elif menu == 'Registro de Administrador':
+        st.title('Registro de Administrador')
+
+        nombre = st.text_input('Nombre del Administrador')
+        email = st.text_input('Correo Electrónico del Administrador')
+        password = st.text_input('Contraseña', type='password')
+
+        if st.button('Registrar Administrador'):
+            if nombre and email and password:
+                # Insertar los datos del administrador en la base de datos
+                c.execute('INSERT INTO usuarios (nombre, email, es_admin) VALUES (?, ?, 1)', (nombre, email))
+                conn.commit()
+                st.success('¡Administrador registrado exitosamente!')
+            else:
+                st.error('Por favor, complete todos los campos.')

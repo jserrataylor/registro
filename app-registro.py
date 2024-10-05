@@ -129,9 +129,10 @@ else:
                         user = c.fetchone()
                         if user:
                             user_id, nombre = user
+                            # Actualizar el registro en la base de datos para confirmar asistencia
                             c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
                             conn.commit()
-                            st.success('¡Asistencia confirmada!')
+                            st.success('¡Asistencia confirmada y registrada en la base de datos!')
 
                             # Enviar correo electrónico de confirmación
                             asunto = 'Confirmación de Asistencia'

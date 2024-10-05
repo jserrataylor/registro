@@ -7,6 +7,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+import ssl
 
 # Función para enviar correos electrónicos
 def enviar_correo(destinatario, asunto, cuerpo, qr_image=None):
@@ -17,7 +18,7 @@ def enviar_correo(destinatario, asunto, cuerpo, qr_image=None):
         msg['Subject'] = asunto
 
         # Cuerpo del correo
-        msg.attach(MIMEText(cuerpo, 'plain'))
+        msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
 
         # Adjuntar el código QR si existe
         if qr_image:
@@ -25,8 +26,9 @@ def enviar_correo(destinatario, asunto, cuerpo, qr_image=None):
             msg.attach(image)
 
         # Configurar servidor SMTP
+        context = ssl.create_default_context()
         server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
+        server.starttls(context=context)
         server.login('tu_correo@gmail.com', 'tu_contraseña')
         server.sendmail('tu_correo@gmail.com', destinatario, msg.as_string())
         server.quit()

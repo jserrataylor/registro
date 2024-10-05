@@ -20,7 +20,7 @@ c.execute('''
 conn.commit()
 
 # Obtener los parámetros de la URL
-query_params = st.query_params
+query_params = st.experimental_get_query_params()
 user_id = query_params.get('user_id', [None])[0]
 
 # Si el parámetro user_id está presente y válido, confirmar asistencia automáticamente
@@ -66,6 +66,10 @@ else:
                     st.warning('El correo electrónico ya está registrado. Recuperando el código QR existente...')
                     c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
                     result = c.fetchone()
+                    
+                    # Depuración: Ver el resultado de la consulta
+                    st.write(result)  
+
                     if result:
                         existing_user_id = result[0]
 
@@ -114,3 +118,4 @@ else:
         if st.button('Exportar a Excel'):
             df.to_excel('registro_usuarios.xlsx', index=False)
             st.success('Datos exportados exitosamente.')
+

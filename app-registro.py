@@ -132,17 +132,12 @@ else:
                             # Actualizar el registro en la base de datos para confirmar asistencia
                             c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
                             conn.commit()
-                            # Verificar si la actualización se realizó correctamente
-                            c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
-                            asistencia = c.fetchone()[0]
-                            if asistencia == 1:
-                                st.success('¡Asistencia confirmada y registrada en la base de datos!')
-                                # Enviar correo electrónico de confirmación
-                                asunto = 'Confirmación de Asistencia'
-                                cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
-                                enviar_correo(email, asunto, cuerpo)
-                            else:
-                                st.error('Error al registrar la asistencia en la base de datos. Intente nuevamente.')
+                            st.success('¡Asistencia confirmada y registrada en la base de datos!')
+
+                            # Enviar correo electrónico de confirmación
+                            asunto = 'Confirmación de Asistencia'
+                            cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
+                            enviar_correo(email, asunto, cuerpo)
                         else:
                             st.error('Correo electrónico no encontrado.')
                     else:

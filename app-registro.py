@@ -74,7 +74,8 @@ else:
         if st.button('Registrarse'):
             if nombre and email and password:
                 hashed_password = hash_password(password)
-                if execute_query('INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)', (nombre, email, hashed_password)) is not None:
+                result = execute_query('INSERT INTO usuarios (nombre, email, password, asistencia, es_admin) VALUES (?, ?, ?, 0, 0)', (nombre, email, hashed_password))
+                if result is not None:
                     user_id = execute_query('SELECT last_insert_rowid()')[0][0]
 
                     # Generar el código QR
@@ -174,7 +175,7 @@ else:
         if st.button('Registrar Administrador'):
             if nombre and email and password:
                 hashed_password = hash_password(password)
-                result = execute_query('INSERT INTO usuarios (nombre, email, password, es_admin) VALUES (?, ?, ?, 1)', (nombre, email, hashed_password))
+                result = execute_query('INSERT INTO usuarios (nombre, email, password, asistencia, es_admin) VALUES (?, ?, ?, 0, 1)', (nombre, email, hashed_password))
                 if result is not None:
                     st.success('¡Administrador registrado exitosamente!')
                 else:

@@ -13,12 +13,23 @@ import hashlib
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Configurar la conexión a la base de datos
-conn = sqlite3.connect('usuarios.db', check_same_thread=False)
-c = conn.cursor()
+# Función para ejecutar consultas SQL con manejo de errores
+def execute_query(query, params=()):
+    try:
+        conn = sqlite3.connect('usuarios.db', check_same_thread=False)
+        c = conn.cursor()
+        c.execute(query, params)
+        conn.commit()
+        result = c.fetchall()
+        return result
+    except sqlite3.OperationalError as e:
+        st.error('Error en la base de datos. Por favor, inténtelo de nuevo más tarde.')
+        return None
+    finally:
+        conn.close()
 
 # Crear la tabla de usuarios si no existe
-c.execute("""
+execute_query("""
 CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
@@ -28,7 +39,6 @@ CREATE TABLE IF NOT EXISTS usuarios (
     es_admin INTEGER DEFAULT 0
 )
 """)
-conn.commit()
 
 # Obtener los parámetros de la URL
 query_params = st.experimental_get_query_params()
@@ -37,12 +47,8 @@ user_id = query_params.get('user_id', [None])[0]
 # Si el parámetro user_id está presente y válido, confirmar asistencia automáticamente
 if user_id and user_id != 'None':
     st.title('Confirmación de Asistencia')
-    try:
-        c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-        conn.commit()
-        st.success('¡Asistencia confirmada!')
-    except sqlite3.OperationalError as e:
-        st.error('Error al actualizar la asistencia. Por favor, inténtelo de nuevo más tarde.')
+    execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+    st.success('¡Asistencia confirmada!')
 else:
     # Menú lateral para navegar entre las opciones
     menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración', 'Registro de Administrador'])
@@ -57,49 +63,44 @@ else:
         if st.button('Registrarse'):
             if nombre and email and password:
                 hashed_password = hash_password(password)
+                execute_query('INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)', (nombre, email, hashed_password))
+                user_id = execute_query('SELECT last_insert_rowid()')[0][0]
+
+                # Generar el código QR
+                qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
+                qr_img = qrcode.make(qr_data)
+                buf = BytesIO()
+                qr_img.save(buf, format='PNG')
+                byte_im = buf.getvalue()
+
+                st.image(byte_im, caption='Tu Código QR')
+                st.success('¡Registro exitoso! Guarda este código QR.')
+
+                # Enviar el correo electrónico con la información de registro y el código QR
                 try:
-                    # Insertar los datos en la base de datos
-                    c.execute('INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)', (nombre, email, hashed_password))
-                    conn.commit()
-                    user_id = c.lastrowid
+                    msg = MIMEMultipart()
+                    msg['From'] = 'tu_correo@gmail.com'
+                    msg['To'] = email
+                    msg['Subject'] = 'Confirmación de Registro y Código QR'
 
-                    # Generar el código QR
-                    qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
-                    qr_img = qrcode.make(qr_data)
-                    buf = BytesIO()
-                    qr_img.save(buf, format='PNG')
-                    byte_im = buf.getvalue()
+                    # Cuerpo del correo
+                    body = f'Hola {nombre},\n\nGracias por registrarte en nuestro evento.\nAdjunto encontrarás tu código QR para la confirmación de asistencia.\n\nSaludos,'
+                    msg.attach(MIMEText(body, 'plain'))
 
-                    st.image(byte_im, caption='Tu Código QR')
-                    st.success('¡Registro exitoso! Guarda este código QR.')
+                    # Adjuntar el código QR
+                    image = MIMEImage(byte_im, name='codigo_qr.png')
+                    msg.attach(image)
 
-                    # Enviar el correo electrónico con la información de registro y el código QR
-                    try:
-                        msg = MIMEMultipart()
-                        msg['From'] = 'tu_correo@gmail.com'
-                        msg['To'] = email
-                        msg['Subject'] = 'Confirmación de Registro y Código QR'
+                    # Configurar servidor SMTP
+                    server = smtplib.SMTP('smtp.gmail.com', 587)
+                    server.starttls()
+                    server.login('tu_correo@gmail.com', 'tu_contraseña')
+                    server.sendmail('tu_correo@gmail.com', email, msg.as_string())
+                    server.quit()
 
-                        # Cuerpo del correo
-                        body = f'Hola {nombre},\n\nGracias por registrarte en nuestro evento.\nAdjunto encontrarás tu código QR para la confirmación de asistencia.\n\nSaludos,'
-                        msg.attach(MIMEText(body, 'plain'))
-
-                        # Adjuntar el código QR
-                        image = MIMEImage(byte_im, name='codigo_qr.png')
-                        msg.attach(image)
-
-                        # Configurar servidor SMTP
-                        server = smtplib.SMTP('smtp.gmail.com', 587)
-                        server.starttls()
-                        server.login('tu_correo@gmail.com', 'tu_contraseña')
-                        server.sendmail('tu_correo@gmail.com', email, msg.as_string())
-                        server.quit()
-
-                        st.success('Correo electrónico enviado con éxito.')
-                    except Exception as e:
-                        st.error(f'Error al enviar el correo electrónico: {e}')
-                except sqlite3.OperationalError as e:
-                    st.error('Error al registrar al usuario. Por favor, inténtelo de nuevo más tarde.')
+                    st.success('Correo electrónico enviado con éxito.')
+                except Exception as e:
+                    st.error(f'Error al enviar el correo electrónico: {e}')
             else:
                 st.error('Por favor, completa todos los campos.')
 
@@ -112,19 +113,13 @@ else:
         if st.button('Confirmar'):
             if email and password:
                 hashed_password = hash_password(password)
-                try:
-                    # Verificar si el usuario es administrador y existe
-                    c.execute('SELECT id FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
-                    admin = c.fetchone()
-                    if admin:
-                        user_id = admin[0]
-                        c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                        conn.commit()
-                        st.success('¡Asistencia confirmada!')
-                    else:
-                        st.error('Credenciales incorrectas o no tiene acceso de administrador.')
-                except sqlite3.OperationalError as e:
-                    st.error('Error al confirmar la asistencia. Por favor, inténtelo de nuevo más tarde.')
+                admin = execute_query('SELECT id FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
+                if admin:
+                    user_id = admin[0][0]
+                    execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                    st.success('¡Asistencia confirmada!')
+                else:
+                    st.error('Credenciales incorrectas o no tiene acceso de administrador.')
             else:
                 st.error('Por favor, ingrese sus credenciales.')
 
@@ -137,22 +132,17 @@ else:
 
         if st.button('Ingresar'):
             hashed_password = hash_password(password)
-            try:
-                # Verificar si el usuario es administrador y existe
-                c.execute('SELECT * FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
-                admin = c.fetchone()
-                if admin:
-                    # Mostrar los usuarios registrados
-                    df = pd.read_sql_query('SELECT * FROM usuarios', conn)
-                    st.dataframe(df)
+            admin = execute_query('SELECT * FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
+            if admin:
+                # Mostrar los usuarios registrados
+                df = pd.read_sql_query('SELECT * FROM usuarios', sqlite3.connect('usuarios.db', check_same_thread=False))
+                st.dataframe(df)
 
-                    if st.button('Exportar a Excel'):
-                        df.to_excel('registro_usuarios.xlsx', index=False)
-                        st.success('Datos exportados exitosamente.')
-                else:
-                    st.error('Credenciales de administrador incorrectas.')
-            except sqlite3.OperationalError as e:
-                st.error('Error al acceder al panel de administración. Por favor, inténtelo de nuevo más tarde.')
+                if st.button('Exportar a Excel'):
+                    df.to_excel('registro_usuarios.xlsx', index=False)
+                    st.success('Datos exportados exitosamente.')
+            else:
+                st.error('Credenciales de administrador incorrectas.')
 
     elif menu == 'Registro de Administrador':
         st.title('Registro de Administrador')
@@ -162,14 +152,9 @@ else:
         password = st.text_input('Contraseña', type='password')
 
         if st.button('Registrar Administrador'):
-            if nombre and email and password:
+            if nombre, email, and password:
                 hashed_password = hash_password(password)
-                try:
-                    # Insertar los datos del administrador en la base de datos
-                    c.execute('INSERT INTO usuarios (nombre, email, password, es_admin) VALUES (?, ?, ?, 1)', (nombre, email, hashed_password))
-                    conn.commit()
-                    st.success('¡Administrador registrado exitosamente!')
-                except sqlite3.OperationalError as e:
-                    st.error('Error al registrar al administrador. Por favor, inténtelo de nuevo más tarde.')
+                execute_query('INSERT INTO usuarios (nombre, email, password, es_admin) VALUES (?, ?, ?, 1)', (nombre, email, hashed_password))
+                st.success('¡Administrador registrado exitosamente!')
             else:
                 st.error('Por favor, complete todos los campos.')

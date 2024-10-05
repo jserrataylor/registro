@@ -9,7 +9,7 @@ from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 
 # Configurar la conexión a la base de datos
-conn = sqlite3.connect('usuarios.db')
+conn = sqlite3.connect('usuarios.db', check_same_thread=False)
 c = conn.cursor()
 
 # Crear la tabla de usuarios si no existe

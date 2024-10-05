@@ -152,7 +152,7 @@ else:
         password = st.text_input('Contraseña', type='password')
 
         if st.button('Registrar Administrador'):
-            if nombre, email, and password:
+            if nombre and email and password:
                 hashed_password = hash_password(password)
                 execute_query('INSERT INTO usuarios (nombre, email, password, es_admin) VALUES (?, ?, ?, 1)', (nombre, email, hashed_password))
                 st.success('¡Administrador registrado exitosamente!')

@@ -114,7 +114,7 @@ else:
         # Solicitar contraseña de administrador
         password = st.text_input('Contraseña de administrador', type='password')
 
-        if st.button('Confirmar'):
+        if st.button('Ingresar'):
             admin_password = 'admin123'  # Contraseña fija para acceso administrativo
             if password == admin_password:
                 email = st.text_input('Ingrese su correo electrónico para confirmar la asistencia')
@@ -133,8 +133,6 @@ else:
                         enviar_correo(email, asunto, cuerpo)
                     else:
                         st.error('Correo electrónico no encontrado.')
-                else:
-                    st.error('Por favor, ingrese su correo electrónico.')
             else:
                 st.error('Contraseña de administrador incorrecta.')
 

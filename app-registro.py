@@ -125,13 +125,13 @@ else:
         if st.button('Confirmar'):
             if email and password:
                 hashed_password = hash_password(password)
-                admin = execute_query('SELECT id FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
+                admin = execute_query('SELECT id FROM usuarios WHERE email = ? AND password = ?', (email, hashed_password))
                 if admin:
                     user_id = admin[0][0]
                     if execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,)) is not None:
                         st.success('¡Asistencia confirmada!')
                 else:
-                    st.error('Credenciales incorrectas o no tiene acceso de administrador.')
+                    st.error('Credenciales incorrectas.')
             else:
                 st.error('Por favor, ingrese sus credenciales.')
 

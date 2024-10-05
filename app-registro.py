@@ -19,56 +19,67 @@ c.execute('''
 ''')
 conn.commit()
 
-# Menú lateral para navegar entre las opciones
-menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración'])
+# Obtener los parámetros de la URL
+query_params = st.query_params
+user_id = query_params.get('user_id', [None])[0]
 
-if menu == 'Registro':
-    st.title('Registro de Evento')
-
-    nombre = st.text_input('Nombre')
-    email = st.text_input('Email')
-
-    if st.button('Registrarse'):
-        if nombre and email:
-            # Insertar los datos en la base de datos
-            c.execute('INSERT INTO usuarios (nombre, email) VALUES (?, ?)', (nombre, email))
-            conn.commit()
-            user_id = c.lastrowid
-
-            # Generar el código QR
-            qr_data = f'https://tusitio.com/?user_id={user_id}'
-            qr_img = qrcode.make(qr_data)
-            buf = BytesIO()
-            qr_img.save(buf, format='PNG')
-            byte_im = buf.getvalue()
-
-            st.image(byte_im, caption='Tu Código QR')
-            st.success('¡Registro exitoso! Guarda este código QR.')
-        else:
-            st.error('Por favor, completa todos los campos.')
-
-elif menu == 'Confirmar Asistencia':
+# Si el parámetro user_id está presente y válido, confirmar asistencia automáticamente
+if user_id and user_id != 'None':
     st.title('Confirmación de Asistencia')
+    c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+    conn.commit()
+    st.success('¡Asistencia confirmada!')
+else:
+    # Menú lateral para navegar entre las opciones
+    menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración'])
 
-    # Pedir el ID del usuario manualmente para pruebas locales
-    user_id = st.text_input('Ingrese el ID de usuario para confirmar la asistencia')
+    if menu == 'Registro':
+        st.title('Registro de Evento')
 
-    if st.button('Confirmar'):
-        if user_id:
-            # Actualizar el registro en la base de datos
-            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-            conn.commit()
-            st.success('¡Asistencia confirmada!')
-        else:
-            st.error('No se proporcionó un ID de usuario válido.')
+        nombre = st.text_input('Nombre')
+        email = st.text_input('Email')
 
-elif menu == 'Administración':
-    st.title('Panel de Administración')
+        if st.button('Registrarse'):
+            if nombre and email:
+                # Insertar los datos en la base de datos
+                c.execute('INSERT INTO usuarios (nombre, email) VALUES (?, ?)', (nombre, email))
+                conn.commit()
+                user_id = c.lastrowid
 
-    # Mostrar los usuarios registrados
-    df = pd.read_sql_query('SELECT * FROM usuarios', conn)
-    st.dataframe(df)
+                # Generar el código QR
+                qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
+                qr_img = qrcode.make(qr_data)
+                buf = BytesIO()
+                qr_img.save(buf, format='PNG')
+                byte_im = buf.getvalue()
 
-    if st.button('Exportar a Excel'):
-        df.to_excel('registro_usuarios.xlsx', index=False)
-        st.success('Datos exportados exitosamente.')
+                st.image(byte_im, caption='Tu Código QR')
+                st.success('¡Registro exitoso! Guarda este código QR.')
+            else:
+                st.error('Por favor, completa todos los campos.')
+
+    elif menu == 'Confirmar Asistencia':
+        st.title('Confirmación de Asistencia')
+
+        # Pedir el ID del usuario manualmente para pruebas locales
+        user_id = st.text_input('Ingrese el ID de usuario para confirmar la asistencia')
+
+        if st.button('Confirmar'):
+            if user_id:
+                # Actualizar el registro en la base de datos
+                c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                conn.commit()
+                st.success('¡Asistencia confirmada!')
+            else:
+                st.error('No se proporcionó un ID de usuario válido.')
+
+    elif menu == 'Administración':
+        st.title('Panel de Administración')
+
+        # Mostrar los usuarios registrados
+        df = pd.read_sql_query('SELECT * FROM usuarios', conn)
+        st.dataframe(df)
+
+        if st.button('Exportar a Excel'):
+            df.to_excel('registro_usuarios.xlsx', index=False)
+            st.success('Datos exportados exitosamente.')

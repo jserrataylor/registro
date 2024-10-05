@@ -5,7 +5,7 @@ import sqlite3
 import pandas as pd
 
 # Configurar la conexión a la base de datos
-conn = sqlite3.connect('usuarios.db')] me gustaría que una vez la persona se registre reciba un correo electronico con la información de su registro y el código QR. Además, que el modulo de confirmación y administración solo se pueda acceder a ellos a través de usuarios autorizados.
+conn = sqlite3.connect('usuarios.db')
 c = conn.cursor()
 
 # Crear la tabla de usuarios si no existe

@@ -111,27 +111,32 @@ else:
     elif menu == 'Confirmar Asistencia':
         st.title('Confirmación de Asistencia')
 
-        email = st.text_input('Ingrese su correo electrónico para confirmar la asistencia')
-        password = st.text_input('Contraseña de confirmación', type='password')
+        # Solicitar contraseña de administrador
+        password = st.text_input('Contraseña de administrador', type='password')
 
         if st.button('Confirmar'):
-            if email and password == 'confirm123':  # Contraseña fija para confirmar asistencia
-                c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
-                user = c.fetchone()
-                if user:
-                    user_id = user[0]
-                    c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                    conn.commit()
-                    st.success('¡Asistencia confirmada!')
+            admin_password = 'admin123'  # Contraseña fija para acceso administrativo
+            if password == admin_password:
+                email = st.text_input('Ingrese su correo electrónico para confirmar la asistencia')
+                if email:
+                    c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
+                    user = c.fetchone()
+                    if user:
+                        user_id = user[0]
+                        c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                        conn.commit()
+                        st.success('¡Asistencia confirmada!')
 
-                    # Enviar correo electrónico de confirmación
-                    asunto = 'Confirmación de Asistencia'
-                    cuerpo = f'Hola,\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
-                    enviar_correo(email, asunto, cuerpo)
+                        # Enviar correo electrónico de confirmación
+                        asunto = 'Confirmación de Asistencia'
+                        cuerpo = f'Hola,\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
+                        enviar_correo(email, asunto, cuerpo)
+                    else:
+                        st.error('Correo electrónico no encontrado.')
                 else:
-                    st.error('Correo electrónico no encontrado.')
+                    st.error('Por favor, ingrese su correo electrónico.')
             else:
-                st.error('Por favor, ingrese sus credenciales correctamente.')
+                st.error('Contraseña de administrador incorrecta.')
 
     elif menu == 'Administración':
         st.title('Panel de Administración')

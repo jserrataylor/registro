@@ -13,7 +13,7 @@ import ssl
 def enviar_correo(destinatario, asunto, cuerpo, qr_image=None):
     try:
         msg = MIMEMultipart()
-        msg['From'] = 'tu_correo@gmail.com'
+        msg['From'] = 'jserrataylor@gmail.com'
         msg['To'] = destinatario
         msg['Subject'] = asunto
 
@@ -30,7 +30,7 @@ def enviar_correo(destinatario, asunto, cuerpo, qr_image=None):
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls(context=context)
         server.login('tu_correo@gmail.com', 'tu_contraseña')
-        server.sendmail('tu_correo@gmail.com', destinatario, msg.as_string())
+        server.sendmail('jserrataylor@gmail.com', destinatario, msg.as_string())
         server.quit()
 
         st.success('Correo electrónico enviado con éxito.')

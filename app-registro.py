@@ -104,7 +104,7 @@ else:
                     cuerpo = f'Hola {nombre},\n\nGracias por registrarte en nuestro evento.\nAdjunto encontrarás tu código QR para la confirmación de asistencia.\n\nSaludos,'
                     enviar_correo(email, asunto, cuerpo, qr_image=byte_im)
                 except sqlite3.IntegrityError:
-                    st.error('El correo electrónico ya está registrado. Por favor, use otro correo.')
+                    st.warning('El correo electrónico ya está registrado. Si ya te has registrado, verifica tu correo para obtener tu código QR.')
             else:
                 st.error('Por favor, completa todos los campos.')
 

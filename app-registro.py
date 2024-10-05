@@ -28,13 +28,14 @@ def execute_query(query, params=()):
     finally:
         conn.close()
 
-# Crear la tabla de usuarios si no existe
+# Crear la tabla de usuarios si no existe (forzar eliminación y recreación para asegurar columnas)
 def initialize_database():
     try:
         conn = sqlite3.connect('usuarios.db', check_same_thread=False)
         c = conn.cursor()
+        c.execute("DROP TABLE IF EXISTS usuarios")  # Eliminar la tabla si ya existe
         c.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
+        CREATE TABLE usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             email TEXT NOT NULL,

@@ -66,7 +66,7 @@ else:
                     st.warning('El correo electrónico ya está registrado. Recuperando el código QR existente...')
                     c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
                     result = c.fetchone()
-                    if result:
+                    if result and result[0]:
                         existing_user_id = result[0]
 
                         # Generar el código QR existente

@@ -13,7 +13,7 @@ import hashlib
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Función para ejecutar consultas SQL con manejo de errores
+# Función para ejecutar consultas SQL con manejo de errores y asegurar la conexión
 def execute_query(query, params=()):
     try:
         conn = sqlite3.connect('usuarios.db', check_same_thread=False)
@@ -23,22 +23,33 @@ def execute_query(query, params=()):
         result = c.fetchall()
         return result
     except sqlite3.OperationalError as e:
-        st.error('Error en la base de datos. Por favor, inténtelo de nuevo más tarde.')
+        st.error(f'Error en la base de datos: {str(e)}. Por favor, inténtelo de nuevo más tarde.')
         return None
     finally:
         conn.close()
 
 # Crear la tabla de usuarios si no existe
-execute_query("""
-CREATE TABLE IF NOT EXISTS usuarios (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT NOT NULL,
-    email TEXT NOT NULL,
-    password TEXT NOT NULL,
-    asistencia INTEGER DEFAULT 0,
-    es_admin INTEGER DEFAULT 0
-)
-""")
+def initialize_database():
+    try:
+        conn = sqlite3.connect('usuarios.db', check_same_thread=False)
+        c = conn.cursor()
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            email TEXT NOT NULL,
+            password TEXT NOT NULL,
+            asistencia INTEGER DEFAULT 0,
+            es_admin INTEGER DEFAULT 0
+        )
+        """)
+        conn.commit()
+    except sqlite3.OperationalError as e:
+        st.error(f'Error al inicializar la base de datos: {str(e)}')
+    finally:
+        conn.close()
+
+initialize_database()
 
 # Obtener los parámetros de la URL
 query_params = st.experimental_get_query_params()
@@ -47,8 +58,8 @@ user_id = query_params.get('user_id', [None])[0]
 # Si el parámetro user_id está presente y válido, confirmar asistencia automáticamente
 if user_id and user_id != 'None':
     st.title('Confirmación de Asistencia')
-    execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-    st.success('¡Asistencia confirmada!')
+    if execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,)) is not None:
+        st.success('¡Asistencia confirmada!')
 else:
     # Menú lateral para navegar entre las opciones
     menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración', 'Registro de Administrador'])
@@ -63,8 +74,7 @@ else:
         if st.button('Registrarse'):
             if nombre and email and password:
                 hashed_password = hash_password(password)
-                result = execute_query('INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)', (nombre, email, hashed_password))
-                if result is not None:
+                if execute_query('INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)', (nombre, email, hashed_password)) is not None:
                     user_id = execute_query('SELECT last_insert_rowid()')[0][0]
 
                     # Generar el código QR
@@ -117,8 +127,8 @@ else:
                 admin = execute_query('SELECT id FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
                 if admin:
                     user_id = admin[0][0]
-                    execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                    st.success('¡Asistencia confirmada!')
+                    if execute_query('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,)) is not None:
+                        st.success('¡Asistencia confirmada!')
                 else:
                     st.error('Credenciales incorrectas o no tiene acceso de administrador.')
             else:
@@ -136,12 +146,21 @@ else:
             admin = execute_query('SELECT * FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, hashed_password))
             if admin:
                 # Mostrar los usuarios registrados
-                df = pd.read_sql_query('SELECT * FROM usuarios', sqlite3.connect('usuarios.db', check_same_thread=False))
-                st.dataframe(df)
+                try:
+                    conn = sqlite3.connect('usuarios.db', check_same_thread=False)
+                    df = pd.read_sql_query('SELECT * FROM usuarios', conn)
+                    st.dataframe(df)
+                except Exception as e:
+                    st.error(f'Error al acceder a los datos: {e}')
+                finally:
+                    conn.close()
 
                 if st.button('Exportar a Excel'):
-                    df.to_excel('registro_usuarios.xlsx', index=False)
-                    st.success('Datos exportados exitosamente.')
+                    try:
+                        df.to_excel('registro_usuarios.xlsx', index=False)
+                        st.success('Datos exportados exitosamente.')
+                    except Exception as e:
+                        st.error(f'Error al exportar los datos: {e}')
             else:
                 st.error('Credenciales de administrador incorrectas.')
 

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
     email TEXT NOT NULL,
+    password TEXT NOT NULL,
     asistencia INTEGER DEFAULT 0,
     es_admin INTEGER DEFAULT 0
 )
@@ -43,11 +44,12 @@ else:
 
         nombre = st.text_input('Nombre')
         email = st.text_input('Email')
+        password = st.text_input('Contraseña', type='password')
 
         if st.button('Registrarse'):
-            if nombre and email:
+            if nombre and email and password:
                 # Insertar los datos en la base de datos
-                c.execute('INSERT INTO usuarios (nombre, email) VALUES (?, ?)', (nombre, email))
+                c.execute('INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)', (nombre, email, password))
                 conn.commit()
                 user_id = c.lastrowid
 
@@ -98,7 +100,7 @@ else:
         if st.button('Confirmar'):
             if email and password:
                 # Verificar si el usuario es administrador y existe
-                c.execute('SELECT id FROM usuarios WHERE email = ? AND es_admin = 1', (email,))
+                c.execute('SELECT id FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, password))
                 admin = c.fetchone()
                 if admin:
                     user_id = admin[0]
@@ -119,7 +121,7 @@ else:
 
         if st.button('Ingresar'):
             # Verificar si el usuario es administrador y existe
-            c.execute('SELECT * FROM usuarios WHERE email = ? AND es_admin = 1', (email,))
+            c.execute('SELECT * FROM usuarios WHERE email = ? AND password = ? AND es_admin = 1', (email, password))
             admin = c.fetchone()
             if admin:
                 # Mostrar los usuarios registrados
@@ -142,7 +144,7 @@ else:
         if st.button('Registrar Administrador'):
             if nombre and email and password:
                 # Insertar los datos del administrador en la base de datos
-                c.execute('INSERT INTO usuarios (nombre, email, es_admin) VALUES (?, ?, 1)', (nombre, email))
+                c.execute('INSERT INTO usuarios (nombre, email, password, es_admin) VALUES (?, ?, ?, 1)', (nombre, email, password))
                 conn.commit()
                 st.success('¡Administrador registrado exitosamente!')
             else:

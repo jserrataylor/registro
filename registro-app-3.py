@@ -13,7 +13,7 @@ import hashlib
 
 # Configuración de dispositivos autorizados
 DISPOSITIVOS_AUTORIZADOS = {
-    "192.168.0.101": "device_1",
+    "24.137.250.136": "device_1",
     "192.168.0.102": "device_2"
 }
 
@@ -96,7 +96,7 @@ if user_id and user_id != 'None':
         st.error('Este dispositivo no está autorizado para confirmar la asistencia.')
 else:
     # Menú lateral para navegar entre las opciones
-    menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración'])
+    menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Confirmación Manual de Asistencia', 'Administración'])
 
     if menu == 'Registro':
         st.title('Registro de Evento')
@@ -164,6 +164,41 @@ else:
                                 st.error('Correo electrónico no encontrado.')
                         else:
                             st.error('Este dispositivo no está autorizado para confirmar la asistencia.')
+                    else:
+                        st.error('Por favor, ingrese el correo electrónico del usuario.')
+            else:
+                st.error('Contraseña de administrador incorrecta.')
+
+    elif menu == 'Confirmación Manual de Asistencia':
+        st.title('Confirmación Manual de Asistencia')
+
+        # Solicitar contraseña de administrador
+        password = st.text_input('Contraseña de administrador', type='password')
+
+        if st.button('Ingresar'):
+            admin_password = 'admin123'  # Contraseña fija para acceso administrativo
+            if password == admin_password:
+                st.success('Acceso concedido. Ahora puede confirmar la asistencia manualmente.')
+
+                # Mostrar la opción para confirmar asistencia manualmente
+                email = st.text_input('Ingrese el correo electrónico del usuario para confirmar la asistencia manualmente')
+                if st.button('Confirmar Asistencia Manual'):
+                    if email:
+                        c.execute('SELECT id, nombre FROM usuarios WHERE email = ?', (email,))
+                        user = c.fetchone()
+                        if user:
+                            user_id, nombre = user
+                            # Actualizar el registro en la base de datos para confirmar asistencia
+                            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                            conn.commit()
+                            st.success('¡Asistencia confirmada y registrada en la base de datos manualmente!')
+
+                            # Enviar correo electrónico de confirmación
+                            asunto = 'Confirmación de Asistencia'
+                            cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento de forma manual.\n\nSaludos,'
+                            enviar_correo(email, asunto, cuerpo)
+                        else:
+                            st.error('Correo electrónico no encontrado.')
                     else:
                         st.error('Por favor, ingrese el correo electrónico del usuario.')
             else:

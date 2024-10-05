@@ -7,6 +7,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+import sqlite3
 
 # Función para ejecutar consultas SQL con manejo de errores y asegurar la conexión
 def execute_query(query, params=()):
@@ -17,6 +18,9 @@ def execute_query(query, params=()):
         conn.commit()
         result = c.fetchall()
         return result
+    except sqlite3.IntegrityError as e:
+        st.error(f'Error: El correo electrónico ya está registrado.')
+        return None
     except sqlite3.OperationalError as e:
         st.error(f'Error en la base de datos: {str(e)}. Por favor, inténtelo de nuevo más tarde.')
         return None
@@ -66,9 +70,7 @@ else:
         if st.button('Registrarse'):
             if nombre and email:
                 result = execute_query('INSERT INTO usuarios (nombre, email, asistencia) VALUES (?, ?, 0)', (nombre, email))
-                if result is None:
-                    st.error('Error al registrar al usuario. Es posible que el correo electrónico ya esté registrado.')
-                else:
+                if result is not None:
                     user_id = execute_query('SELECT last_insert_rowid()')[0][0]
 
                     # Generar el código QR

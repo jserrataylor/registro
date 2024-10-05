@@ -3,40 +3,9 @@ import qrcode
 from io import BytesIO
 import sqlite3
 import pandas as pd
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.image import MIMEImage
-
-# Función para enviar correos electrónicos
-def enviar_correo(destinatario, asunto, cuerpo, qr_image=None):
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = 'tu_correo@gmail.com'
-        msg['To'] = destinatario
-        msg['Subject'] = asunto
-
-        # Cuerpo del correo
-        msg.attach(MIMEText(cuerpo, 'plain'))
-
-        # Adjuntar el código QR si existe
-        if qr_image:
-            image = MIMEImage(qr_image, name='codigo_qr.png')
-            msg.attach(image)
-
-        # Configurar servidor SMTP
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login('tu_correo@gmail.com', 'tu_contraseña')
-        server.sendmail('tu_correo@gmail.com', destinatario, msg.as_string())
-        server.quit()
-
-        st.success('Correo electrónico enviado con éxito.')
-    except Exception as e:
-        st.error(f'Error al enviar el correo electrónico: {e}')
 
 # Configurar la conexión a la base de datos
-conn = sqlite3.connect('usuarios.db', check_same_thread=False)
+conn = sqlite3.connect('usuarios.db')
 c = conn.cursor()
 
 # Crear la tabla de usuarios si no existe
@@ -44,33 +13,22 @@ c.execute('''
     CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL,
         asistencia INTEGER DEFAULT 0
     )
 ''')
 conn.commit()
 
 # Obtener los parámetros de la URL
-query_params = st.experimental_get_query_params()
+query_params = st.query_params
 user_id = query_params.get('user_id', [None])[0]
 
 # Si el parámetro user_id está presente y válido, confirmar asistencia automáticamente
 if user_id and user_id != 'None':
     st.title('Confirmación de Asistencia')
-    c.execute('SELECT nombre, email FROM usuarios WHERE id = ?', (user_id,))
-    user = c.fetchone()
-    if user:
-        c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-        conn.commit()
-        st.success('¡Asistencia confirmada!')
-
-        # Enviar correo electrónico de confirmación
-        nombre, email = user
-        asunto = 'Confirmación de Asistencia'
-        cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
-        enviar_correo(email, asunto, cuerpo)
-    else:
-        st.error('Usuario no encontrado.')
+    c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+    conn.commit()
+    st.success('¡Asistencia confirmada!')
 else:
     # Menú lateral para navegar entre las opciones
     menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Administración'])
@@ -83,71 +41,45 @@ else:
 
         if st.button('Registrarse'):
             if nombre and email:
-                try:
-                    # Insertar los datos en la base de datos
-                    c.execute('INSERT INTO usuarios (nombre, email) VALUES (?, ?)', (nombre, email))
-                    conn.commit()
-                    user_id = c.lastrowid
+                # Insertar los datos en la base de datos
+                c.execute('INSERT INTO usuarios (nombre, email) VALUES (?, ?)', (nombre, email))
+                conn.commit()
+                user_id = c.lastrowid
 
-                    # Generar el código QR
-                    qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
-                    qr_img = qrcode.make(qr_data)
-                    buf = BytesIO()
-                    qr_img.save(buf, format='PNG')
-                    byte_im = buf.getvalue()
+                # Generar el código QR
+                qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
+                qr_img = qrcode.make(qr_data)
+                buf = BytesIO()
+                qr_img.save(buf, format='PNG')
+                byte_im = buf.getvalue()
 
-                    st.image(byte_im, caption='Tu Código QR')
-                    st.success('¡Registro exitoso! Guarda este código QR.')
-
-                    # Enviar correo electrónico con la información de registro y el código QR
-                    asunto = 'Confirmación de Registro y Código QR'
-                    cuerpo = f'Hola {nombre},\n\nGracias por registrarte en nuestro evento.\nAdjunto encontrarás tu código QR para la confirmación de asistencia.\n\nSaludos,'
-                    enviar_correo(email, asunto, cuerpo, qr_image=byte_im)
-                except sqlite3.IntegrityError:
-                    st.error('El correo electrónico ya está registrado. Por favor, use otro correo.')
+                st.image(byte_im, caption='Tu Código QR')
+                st.success('¡Registro exitoso! Guarda este código QR.')
             else:
                 st.error('Por favor, completa todos los campos.')
 
     elif menu == 'Confirmar Asistencia':
         st.title('Confirmación de Asistencia')
 
-        email = st.text_input('Ingrese su correo electrónico para confirmar la asistencia')
-        password = st.text_input('Contraseña de confirmación', type='password')
+        # Pedir el ID del usuario manualmente para pruebas locales
+        user_id = st.text_input('Ingrese el ID de usuario para confirmar la asistencia')
 
         if st.button('Confirmar'):
-            if email and password == 'confirm123':  # Contraseña fija para confirmar asistencia
-                c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
-                user = c.fetchone()
-                if user:
-                    user_id = user[0]
-                    c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                    conn.commit()
-                    st.success('¡Asistencia confirmada!')
-
-                    # Enviar correo electrónico de confirmación
-                    asunto = 'Confirmación de Asistencia'
-                    cuerpo = f'Hola,\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
-                    enviar_correo(email, asunto, cuerpo)
-                else:
-                    st.error('Correo electrónico no encontrado.')
+            if user_id:
+                # Actualizar el registro en la base de datos
+                c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                conn.commit()
+                st.success('¡Asistencia confirmada!')
             else:
-                st.error('Por favor, ingrese sus credenciales correctamente.')
+                st.error('No se proporcionó un ID de usuario válido.')
 
     elif menu == 'Administración':
         st.title('Panel de Administración')
 
-        # Solicitar contraseña de administrador
-        password = st.text_input('Contraseña de administrador', type='password')
+        # Mostrar los usuarios registrados
+        df = pd.read_sql_query('SELECT * FROM usuarios', conn)
+        st.dataframe(df)
 
-        if st.button('Ingresar'):
-            admin_password = 'admin123'  # Contraseña fija para acceso administrativo
-            if password == admin_password:
-                # Mostrar los usuarios registrados
-                df = pd.read_sql_query('SELECT * FROM usuarios', conn)
-                st.dataframe(df)
-
-                if st.button('Exportar a Excel'):
-                    df.to_excel('registro_usuarios.xlsx', index=False)
-                    st.success('Datos exportados exitosamente.')
-            else:
-                st.error('Contraseña de administrador incorrecta.')
+        if st.button('Exportar a Excel'):
+            df.to_excel('registro_usuarios.xlsx', index=False)
+            st.success('Datos exportados exitosamente.')

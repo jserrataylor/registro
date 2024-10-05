@@ -65,17 +65,21 @@ else:
                 except sqlite3.IntegrityError:
                     st.warning('El correo electrónico ya está registrado. Recuperando el código QR existente...')
                     c.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
-                    existing_user_id = c.fetchone()[0]
+                    result = c.fetchone()
+                    if result:
+                        existing_user_id = result[0]
 
-                    # Generar el código QR existente
-                    qr_data = f'https://registro-app.streamlit.app/?user_id={existing_user_id}'
-                    qr_img = qrcode.make(qr_data)
-                    buf = BytesIO()
-                    qr_img.save(buf, format='PNG')
-                    byte_im = buf.getvalue()
+                        # Generar el código QR existente
+                        qr_data = f'https://registro-app.streamlit.app/?user_id={existing_user_id}'
+                        qr_img = qrcode.make(qr_data)
+                        buf = BytesIO()
+                        qr_img.save(buf, format='PNG')
+                        byte_im = buf.getvalue()
 
-                    st.image(byte_im, caption='Tu Código QR')
-                    st.success('Registro encontrado. Este es tu código QR.')
+                        st.image(byte_im, caption='Tu Código QR')
+                        st.success('Registro encontrado. Este es tu código QR.')
+                    else:
+                        st.error('Error al recuperar el registro existente. Por favor, inténtalo nuevamente.')
             else:
                 st.error('Por favor, completa todos los campos.')
 

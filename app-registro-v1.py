@@ -90,13 +90,9 @@ if user_id and user_id != 'None':
         c.execute('SELECT nombre, email FROM usuarios WHERE id = ?', (user_id,))
         user = c.fetchone()
         if user:
-            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-            conn.commit()
-
-            # Verificar si la asistencia se registró correctamente
-            c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
-            asistencia = c.fetchone()[0]
-            if asistencia == 1:
+            try:
+                c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                conn.commit()
                 st.success('Asistencia confirmada correctamente.')
 
                 # Enviar correo electrónico de confirmación
@@ -104,8 +100,9 @@ if user_id and user_id != 'None':
                 asunto = 'Confirmación de Asistencia'
                 cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
                 enviar_correo(email, asunto, cuerpo)
-            else:
-                st.error('No se pudo confirmar la asistencia, inténtelo de nuevo.')
+            except sqlite3.Error as e:
+                st.error(f"Error al actualizar la asistencia en la base de datos: {e}")
+                logging.error(f"Error al actualizar la asistencia en la base de datos: {e}")
         else:
             st.error('Usuario no encontrado.')
     except ValueError:
@@ -166,22 +163,19 @@ else:
                         user = c.fetchone()
                         if user:
                             user_id, nombre = user
-                            # Actualizar el registro en la base de datos para confirmar asistencia
-                            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                            conn.commit()
-
-                            # Verificar si la asistencia se registró correctamente
-                            c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
-                            asistencia = c.fetchone()[0]
-                            if asistencia == 1:
+                            try:
+                                # Actualizar el registro en la base de datos para confirmar asistencia
+                                c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                                conn.commit()
                                 st.success('Asistencia confirmada y registrada en la base de datos.')
 
                                 # Enviar correo electrónico de confirmación
                                 asunto = 'Confirmación de Asistencia'
                                 cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
                                 enviar_correo(email, asunto, cuerpo)
-                            else:
-                                st.error('No se pudo confirmar la asistencia, inténtelo de nuevo.')
+                            except sqlite3.Error as e:
+                                st.error(f"Error al actualizar la asistencia en la base de datos: {e}")
+                                logging.error(f"Error al actualizar la asistencia en la base de datos: {e}")
                         else:
                             st.error('Correo electrónico no encontrado.')
                     else:
@@ -208,22 +202,19 @@ else:
                         user = c.fetchone()
                         if user:
                             user_id, nombre = user
-                            # Actualizar el registro en la base de datos para confirmar asistencia
-                            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                            conn.commit()
-
-                            # Verificar si la asistencia se registró correctamente
-                            c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
-                            asistencia = c.fetchone()[0]
-                            if asistencia == 1:
+                            try:
+                                # Actualizar el registro en la base de datos para confirmar asistencia
+                                c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                                conn.commit()
                                 st.success('Asistencia confirmada y registrada en la base de datos manualmente.')
 
                                 # Enviar correo electrónico de confirmación
                                 asunto = 'Confirmación de Asistencia'
                                 cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento de forma manual.\n\nSaludos,'
                                 enviar_correo(email, asunto, cuerpo)
-                            else:
-                                st.error('No se pudo confirmar la asistencia, inténtelo de nuevo.')
+                            except sqlite3.Error as e:
+                                st.error(f"Error al actualizar la asistencia en la base de datos: {e}")
+                                logging.error(f"Error al actualizar la asistencia en la base de datos: {e}")
                         else:
                             st.error('Correo electrónico no encontrado.')
                     else:

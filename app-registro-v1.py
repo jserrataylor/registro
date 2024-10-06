@@ -1,58 +1,240 @@
+import streamlit as st
+import qrcode
+from io import BytesIO
+import sqlite3
+import pandas as pd
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
+import ssl
+import socket
+import hashlib
+import logging
 
-# Función para enviar correo
-def enviar_correo(destinatario, asunto, mensaje, adjunto=None):
-    email_usuario = 'tu_correo@gmail.com'
-    email_contraseña = 'tu_contraseña_de_aplicacion'  # Asegúrate de usar una contraseña de aplicación (Google)
-    email_destino = destinatario
+# Configuración de dispositivos autorizados
+DISPOSITIVOS_AUTORIZADOS = {
+    "192.168.0.101": "device_1",
+    "192.168.0.102": "device_2",
+    "24.137.250.136": "device_3",
+    "172.59.17.43": "device_4"
+}
 
-    msg = MIMEMultipart()
-    msg['From'] = email_usuario
-    msg['To'] = email_destino
-    msg['Subject'] = asunto
+# Configurar logging para diagnosticar errores
+logging.basicConfig(level=logging.INFO)
 
-    msg.attach(MIMEText(mensaje, 'plain'))
+# Función para verificar si el dispositivo está autorizado
+def dispositivo_autorizado():
+    try:
+        hostname = socket.gethostname()
+        ip_address = socket.gethostbyname(hostname)
+        logging.info(f"IP del dispositivo: {ip_address}")
+        return ip_address in DISPOSITIVOS_AUTORIZADOS
+    except Exception as e:
+        st.error(f"Error al obtener la dirección IP del dispositivo: {e}")
+        return False
 
-    if adjunto:
-        # Adjuntar el archivo (en este caso el código QR)
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(adjunto)
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f"attachment; filename= {adjunto}")
-        msg.attach(part)
+# Función para enviar correos electrónicos
+def enviar_correo(destinatario, asunto, cuerpo, qr_image=None):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = 'tu_correo@gmail.com'
+        msg['To'] = destinatario
+        msg['Subject'] = asunto
 
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    server.starttls()
-    server.login(email_usuario, email_contraseña)
-    text = msg.as_string()
-    server.sendmail(email_usuario, email_destino, text)
-    server.quit()
+        # Cuerpo del correo
+        msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
 
-# Llamada a la función al registrarse el usuario
-if st.button('Registrarse'):
-    if nombre and email:
+        # Adjuntar el código QR si existe
+        if qr_image:
+            image = MIMEImage(qr_image, name='codigo_qr.png')
+            msg.attach(image)
+
+        # Configurar servidor SMTP
+        context = ssl.create_default_context()
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls(context=context)
+        server.login('tu_correo@gmail.com', 'tu_contraseña')
+        server.sendmail('tu_correo@gmail.com', destinatario, msg.as_string())
+        server.quit()
+
+        st.success('Correo electrónico enviado con éxito.')
+    except Exception as e:
+        st.error(f'Error al enviar el correo electrónico: {e}')
+        logging.error(f"Error al enviar el correo electrónico: {e}")
+
+# Configurar la conexión a la base de datos
+conn = sqlite3.connect('usuarios.db', check_same_thread=False)
+c = conn.cursor()
+
+# Crear la tabla de usuarios si no existe
+c.execute('''
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        asistencia INTEGER DEFAULT 0
+    )
+''')
+conn.commit()
+
+# Obtener los parámetros de la URL
+query_params = st.experimental_get_query_params()
+user_id = query_params.get('user_id', [None])[0]
+
+# Si el parámetro user_id está presente y válido, confirmar asistencia automáticamente
+if user_id and user_id != 'None':
+    st.title('Confirmación de Asistencia')
+    if dispositivo_autorizado():
         try:
-            c.execute('INSERT INTO usuarios (nombre, email) VALUES (?, ?)', (nombre, email))
-            conn.commit()
-            user_id = c.lastrowid
+            user_id = int(user_id)
+            c.execute('SELECT nombre, email FROM usuarios WHERE id = ?', (user_id,))
+            user = c.fetchone()
+            if user:
+                c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                conn.commit()
 
-            # Generar el código QR
-            qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
-            qr_img = qrcode.make(qr_data)
-            buf = BytesIO()
-            qr_img.save(buf, format='PNG')
-            byte_im = buf.getvalue()
+                # Verificar si la asistencia se registró correctamente
+                c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
+                asistencia = c.fetchone()[0]
+                if asistencia == 1:
+                    st.success('Asistencia confirmada correctamente.')
 
-            # Enviar correo con el QR adjunto
-            mensaje = f"Hola {nombre}, gracias por registrarte. Aquí está tu código QR."
-            enviar_correo(email, 'Registro Confirmado', mensaje, byte_im)
+                    # Enviar correo electrónico de confirmación
+                    nombre, email = user
+                    asunto = 'Confirmación de Asistencia'
+                    cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
+                    enviar_correo(email, asunto, cuerpo)
+                else:
+                    st.error('No se pudo confirmar la asistencia, inténtelo de nuevo.')
+            else:
+                st.error('Usuario no encontrado.')
+        except ValueError:
+            st.error('ID de usuario no válido.')
+    else:
+        st.error('Este dispositivo no está autorizado para confirmar la asistencia.')
+else:
+    # Menú lateral para navegar entre las opciones
+    menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Confirmación Manual de Asistencia', 'Administración'])
 
-            st.image(byte_im, caption='Tu Código QR')
-            st.success('¡Registro exitoso! Guarda este código QR.')
-        except sqlite3.IntegrityError:
-            st.warning('El correo electrónico ya está registrado. Recuperando el código QR existente...')
+    if menu == 'Registro':
+        st.title('Registro de Evento')
 
+        nombre = st.text_input('Nombre')
+        email = st.text_input('Email')
+
+        if st.button('Registrarse'):
+            if nombre and email:
+                try:
+                    # Insertar los datos en la base de datos
+                    c.execute('INSERT INTO usuarios (nombre, email) VALUES (?, ?)', (nombre, email))
+                    conn.commit()
+                    user_id = c.lastrowid
+
+                    # Generar el código QR
+                    qr_data = f'https://registro-app.streamlit.app/?user_id={user_id}'
+                    qr_img = qrcode.make(qr_data)
+                    buf = BytesIO()
+                    qr_img.save(buf, format='PNG')
+                    byte_im = buf.getvalue()
+
+                    st.image(byte_im, caption='Tu Código QR')
+                    st.success('¡Registro exitoso! Guarda este código QR.')
+
+                    # Enviar correo electrónico con la información de registro y el código QR
+                    asunto = 'Confirmación de Registro y Código QR'
+                    cuerpo = f'Hola {nombre},\n\nGracias por registrarte en nuestro evento.\nAdjunto encontrarás tu código QR para la confirmación de asistencia.\n\nSaludos,'
+                    enviar_correo(email, asunto, cuerpo, qr_image=byte_im)
+                except sqlite3.IntegrityError:
+                    st.warning('El correo electrónico ya está registrado. Si ya te has registrado, verifica tu correo para obtener tu código QR.')
+            else:
+                st.error('Por favor, completa todos los campos.')
+
+    elif menu == 'Confirmar Asistencia':
+        st.title('Confirmación de Asistencia')
+
+        # Solicitar contraseña de administrador
+        password = st.text_input('Contraseña de administrador', type='password')
+
+        if st.button('Ingresar'):
+            admin_password = 'admin123'  # Contraseña fija para acceso administrativo
+            if password == admin_password:
+                st.success('Acceso concedido. Ahora puede confirmar la asistencia de los usuarios.')
+
+                # Mostrar la opción para confirmar asistencia
+                email = st.text_input('Ingrese el correo electrónico del usuario para confirmar la asistencia')
+                if st.button('Confirmar Asistencia'):
+                    if email:
+                        c.execute('SELECT id, nombre FROM usuarios WHERE email = ?', (email,))
+                        user = c.fetchone()
+                        if user:
+                            user_id, nombre = user
+                            # Actualizar el registro en la base de datos para confirmar asistencia
+                            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                            conn.commit()
+                            st.success('Asistencia confirmada y registrada en la base de datos.')
+
+                            # Enviar correo electrónico de confirmación
+                            asunto = 'Confirmación de Asistencia'
+                            cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
+                            enviar_correo(email, asunto, cuerpo)
+                        else:
+                            st.error('Correo electrónico no encontrado.')
+                    else:
+                        st.error('Por favor, ingrese el correo electrónico del usuario.')
+            else:
+                st.error('Contraseña de administrador incorrecta.')
+
+    elif menu == 'Confirmación Manual de Asistencia':
+        st.title('Confirmación Manual de Asistencia')
+
+        # Solicitar contraseña de administrador
+        password = st.text_input('Contraseña de administrador', type='password')
+
+        if st.button('Ingresar'):
+            admin_password = 'admin123'  # Contraseña fija para acceso administrativo
+            if password == admin_password:
+                st.success('Acceso concedido. Ahora puede confirmar la asistencia manualmente.')
+
+                # Mostrar la opción para confirmar asistencia manualmente
+                email = st.text_input('Ingrese el correo electrónico del usuario para confirmar la asistencia manualmente')
+                if st.button('Confirmar Asistencia Manual'):
+                    if email:
+                        c.execute('SELECT id, nombre FROM usuarios WHERE email = ?', (email,))
+                        user = c.fetchone()
+                        if user:
+                            user_id, nombre = user
+                            # Actualizar el registro en la base de datos para confirmar asistencia
+                            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+                            conn.commit()
+                            st.success('Asistencia confirmada y registrada en la base de datos manualmente.')
+
+                            # Enviar correo electrónico de confirmación
+                            asunto = 'Confirmación de Asistencia'
+                            cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento de forma manual.\n\nSaludos,'
+                            enviar_correo(email, asunto, cuerpo)
+                        else:
+                            st.error('Correo electrónico no encontrado.')
+                    else:
+                        st.error('Por favor, ingrese el correo electrónico del usuario.')
+            else:
+                st.error('Contraseña de administrador incorrecta.')
+
+    elif menu == 'Administración':
+        st.title('Panel de Administración')
+
+        # Solicitar contraseña de administrador
+        password = st.text_input('Contraseña de administrador', type='password')
+
+        if st.button('Ingresar'):
+            admin_password = 'admin123'  # Contraseña fija para acceso administrativo
+            if password == admin_password:
+                # Mostrar los usuarios registrados
+                df = pd.read_sql_query('SELECT * FROM usuarios', conn)
+                st.dataframe(df)
+
+                if st.button('Exportar a Excel'):
+                    df.to_excel('registro_usuarios.xlsx', index=False)
+                    st.success('Datos exportados exitosamente.')
+            else:
+                st.error('Contraseña de administrador incorrecta.')

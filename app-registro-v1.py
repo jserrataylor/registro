@@ -85,34 +85,31 @@ user_id = query_params.get('user_id', [None])[0]
 # Si el parámetro user_id está presente y válido, confirmar asistencia automáticamente
 if user_id and user_id != 'None':
     st.title('Confirmación de Asistencia')
-    if dispositivo_autorizado():
-        try:
-            user_id = int(user_id)
-            c.execute('SELECT nombre, email FROM usuarios WHERE id = ?', (user_id,))
-            user = c.fetchone()
-            if user:
-                c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
-                conn.commit()
+    try:
+        user_id = int(user_id)
+        c.execute('SELECT nombre, email FROM usuarios WHERE id = ?', (user_id,))
+        user = c.fetchone()
+        if user:
+            c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
+            conn.commit()
 
-                # Verificar si la asistencia se registró correctamente
-                c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
-                asistencia = c.fetchone()[0]
-                if asistencia == 1:
-                    st.success('Asistencia confirmada correctamente.')
+            # Verificar si la asistencia se registró correctamente
+            c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
+            asistencia = c.fetchone()[0]
+            if asistencia == 1:
+                st.success('Asistencia confirmada correctamente.')
 
-                    # Enviar correo electrónico de confirmación
-                    nombre, email = user
-                    asunto = 'Confirmación de Asistencia'
-                    cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
-                    enviar_correo(email, asunto, cuerpo)
-                else:
-                    st.error('No se pudo confirmar la asistencia, inténtelo de nuevo.')
+                # Enviar correo electrónico de confirmación
+                nombre, email = user
+                asunto = 'Confirmación de Asistencia'
+                cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
+                enviar_correo(email, asunto, cuerpo)
             else:
-                st.error('Usuario no encontrado.')
-        except ValueError:
-            st.error('ID de usuario no válido.')
-    else:
-        st.error('Este dispositivo no está autorizado para confirmar la asistencia.')
+                st.error('No se pudo confirmar la asistencia, inténtelo de nuevo.')
+        else:
+            st.error('Usuario no encontrado.')
+    except ValueError:
+        st.error('ID de usuario no válido.')
 else:
     # Menú lateral para navegar entre las opciones
     menu = st.sidebar.selectbox('Seleccione una opción', ['Registro', 'Confirmar Asistencia', 'Confirmación Manual de Asistencia', 'Administración'])
@@ -172,12 +169,19 @@ else:
                             # Actualizar el registro en la base de datos para confirmar asistencia
                             c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
                             conn.commit()
-                            st.success('Asistencia confirmada y registrada en la base de datos.')
 
-                            # Enviar correo electrónico de confirmación
-                            asunto = 'Confirmación de Asistencia'
-                            cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
-                            enviar_correo(email, asunto, cuerpo)
+                            # Verificar si la asistencia se registró correctamente
+                            c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
+                            asistencia = c.fetchone()[0]
+                            if asistencia == 1:
+                                st.success('Asistencia confirmada y registrada en la base de datos.')
+
+                                # Enviar correo electrónico de confirmación
+                                asunto = 'Confirmación de Asistencia'
+                                cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento.\n\nSaludos,'
+                                enviar_correo(email, asunto, cuerpo)
+                            else:
+                                st.error('No se pudo confirmar la asistencia, inténtelo de nuevo.')
                         else:
                             st.error('Correo electrónico no encontrado.')
                     else:
@@ -207,12 +211,19 @@ else:
                             # Actualizar el registro en la base de datos para confirmar asistencia
                             c.execute('UPDATE usuarios SET asistencia = 1 WHERE id = ?', (user_id,))
                             conn.commit()
-                            st.success('Asistencia confirmada y registrada en la base de datos manualmente.')
 
-                            # Enviar correo electrónico de confirmación
-                            asunto = 'Confirmación de Asistencia'
-                            cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento de forma manual.\n\nSaludos,'
-                            enviar_correo(email, asunto, cuerpo)
+                            # Verificar si la asistencia se registró correctamente
+                            c.execute('SELECT asistencia FROM usuarios WHERE id = ?', (user_id,))
+                            asistencia = c.fetchone()[0]
+                            if asistencia == 1:
+                                st.success('Asistencia confirmada y registrada en la base de datos manualmente.')
+
+                                # Enviar correo electrónico de confirmación
+                                asunto = 'Confirmación de Asistencia'
+                                cuerpo = f'Hola {nombre},\n\nGracias por confirmar tu asistencia al evento de forma manual.\n\nSaludos,'
+                                enviar_correo(email, asunto, cuerpo)
+                            else:
+                                st.error('No se pudo confirmar la asistencia, inténtelo de nuevo.')
                         else:
                             st.error('Correo electrónico no encontrado.')
                     else:

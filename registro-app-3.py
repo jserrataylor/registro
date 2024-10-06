@@ -13,7 +13,7 @@ import hashlib
 
 # Configuración de dispositivos autorizados
 DISPOSITIVOS_AUTORIZADOS = {
-    "24.137.250.136": "device_1",
+    "172.59.16.203": "device_1",
     "192.168.0.102": "device_2"
 }
 
